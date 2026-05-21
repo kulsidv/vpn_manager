@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оплата подписки | VPN Manager</title>
+    <style>
+        :root { --primary: #2563eb; --success: #10b981; --error: #ef4444; --bg: #f8fafc; --card: #ffffff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .gateway-card { background: var(--card); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); padding: 32px; max-width: 400px; width: 100%; text-align: center; }
+        .logo { font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .plan-box { background: #f1f5f9; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+        .plan-name { font-size: 16px; font-weight: 500; color: #475569; margin-bottom: 4px; }
+        .plan-price { font-size: 32px; font-weight: 700; color: #0f172a; }
+        .plan-period { font-size: 14px; color: #64748b; margin-top: 2px; }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-pay { background: var(--success); color: white; }
+        .btn-pay:hover { background: #059669; }
+        .btn-pay:disabled { background: #94a3b8; cursor: not-allowed; }
+        .loader { display: none; width: 20px; height: 20px; border: 3px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status { margin-top: 16px; font-size: 14px; min-height: 20px; line-height: 1.4; }
+        .status.success { color: var(--success); }
+        .status.error { color: var(--error); }
+        .secure { margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #64748b; font-size: 12px; }
+        .btn-return { margin-top: 12px; background: #e2e8f0; color: #334155; display: none; }
+        .btn-return:hover { background: #cbd5e1; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Mock Payment Gateway</h2>
+        <p>Сумма: <strong>299 RUB / месяц</strong></p>
+        
+        <form id="payment-form" method="POST">
+            {% csrf_token %}
+            <button class="btn" id="payBtn">Оплатить подписку</button>
+        </form>
+        <div class="loader" id="loader"></div>
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('payment-form');
+        const payBtn = document.getElementById('payBtn');
+        const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        payBtn.addEventListener('click', async () => {
+            payBtn.disabled = true;
+            payBtn.textContent = 'Обработка...';
+
+            try {
+                const res = await fetch('/api/billing/mock-confirm/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken  // ✅ Django проверит этот заголовок
+                    },
+                    body: JSON.stringify({
+                        session_id: "{{ session_id }}",
+                        type: 'payment.succeeded'
+                    })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    payBtn.textContent = '✅ Подписка активирована';
+                    payBtn.style.background = '#10b981';
+                } else {
+                    throw new Error(data.error || 'Ошибка сервера');
+                }
+            } catch (err) {
+                alert(err.message);
+                payBtn.disabled = false;
+                payBtn.textContent = 'Оплатить подписку';
+            }
+        });
+    </script>
+</body>
+</html>
