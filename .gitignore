@@ -1,3 +1,5 @@
 biiling.txt
 plan.xlsx
 зачем нужен бекэнд.xlsx
+vpn_manager/*/__pycache__/
+vpn_manager/db.sqlite3

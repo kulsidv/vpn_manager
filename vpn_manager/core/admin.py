@@ -12,7 +12,7 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(VpnConfig)
 class VpnConfigAdmin(admin.ModelAdmin):
-    list_display = ("user", "priority", "is_active")
+    list_display = ("user", "priority")
     search_fields = ("user__username", "priority")
 
 

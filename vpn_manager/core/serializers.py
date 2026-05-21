@@ -114,7 +114,6 @@ class VpnConfigSerializer(serializers.ModelSerializer):
             "user",
             "config_text",
             "priority",
-            "is_active",
             "created_at",
             "updated_at",
         )

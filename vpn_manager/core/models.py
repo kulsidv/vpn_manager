@@ -33,7 +33,6 @@ class VpnConfig(models.Model):
         "Конфигурация", help_text="Полный текст конфигурации WireGuard"
     )
     priority = models.IntegerField("Приоритет")
-    is_active = models.BooleanField("Активен", default=False)
     created_at = models.DateTimeField("Добавлен", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлен", auto_now=True)
 

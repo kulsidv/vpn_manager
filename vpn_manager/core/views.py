@@ -18,6 +18,7 @@ User = get_user_model()
 
 class VpnConfigViewSet(viewsets.ModelViewSet):
     serializer_class = VpnConfigSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
         return VpnConfig.objects.filter(user=self.request.user).order_by(
@@ -27,19 +28,10 @@ class VpnConfigViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-    @action(detail=True, methods=["patch"])
-    def activate(self, request, pk=None):
-        config = self.get_object()
-        VpnConfig.objects.filter(user=request.user, is_active=True).update(
-            is_active=False
-        )
-        config.is_active = True
-        config.save()
-        return Response({"status": "activated", "id": config.id})
-
 
 class TargetAppViewSet(viewsets.ModelViewSet):
     serializer_class = TargetAppSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
         return TargetApp.objects.filter(user=self.request.user)
@@ -159,7 +151,6 @@ def mock_webhook(request):
     try:
         # Формат session_id: sess_{user_id}_{timestamp}
         user_id = int(session_id.split("_")[1])
-        from django.contrib.auth import get_user_model
 
         User = get_user_model()
         user = User.objects.get(id=user_id)
