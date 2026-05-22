@@ -1,10 +1,21 @@
+import uuid
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 
 
 class User(AbstractUser):
-    is_subscribed = models.BooleanField(default=False, editable=False)
+    @property
+    def is_subscribed(self):
+        try:
+            sub = self.subscription
+            return (
+                sub.status == 'active'
+                and sub.current_period_end
+                and sub.current_period_end > timezone.now()
+            )
+        except User.subscription.RelatedObjectDoesNotExist:
+            return False
 
     class Meta:
         verbose_name = "пользователь"
@@ -12,14 +23,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return super().__str__()
-
-    def save(self, *args, **kwargs):
-        sub = self.subscription
-        self.is_subscribed = bool(
-            sub and sub.status == 'active'
-            and sub.current_period_end > timezone.now()
-        )
-        super().save(*args, **kwargs)
 
 
 class VpnConfig(models.Model):
@@ -84,11 +87,10 @@ class Subscription(models.Model):
     renewal_count = models.PositiveIntegerField("Количество продлений", default=0)
     STATUS_CHOICES = [
         ('inactive', 'Неактивна'),
-        ('active', 'Активна'),
-        ('in progress', 'Оформляется')
+        ('active', 'Активна')
     ]
     status = models.CharField(
-        "Статус", max_length=12, choices=STATUS_CHOICES, default="in progress"
+        "Статус", max_length=10, choices=STATUS_CHOICES, default="inactive"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -96,3 +98,10 @@ class Subscription(models.Model):
     class Meta:
         verbose_name = "подписка"
         verbose_name_plural = "Подписка"
+
+    def save(self, *args, **kwargs):
+        if not self.gateway_customer_id:
+            self.gateway_customer_id = f"cust_{uuid.uuid4().hex[:8]}"
+        if not self.gateway_subscription_id:
+            self.gateway_subscription_id = f"sub_{uuid.uuid4().hex[:8]}"
+        super().save(*args, **kwargs)

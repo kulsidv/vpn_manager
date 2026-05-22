@@ -1,4 +1,4 @@
-import uuid
+from django.db import transaction
 from django.shortcuts import render
 from rest_framework import generics, viewsets, status, permissions
 from rest_framework.decorators import api_view, permission_classes, action
@@ -18,7 +18,7 @@ User = get_user_model()
 
 class VpnConfigViewSet(viewsets.ModelViewSet):
     serializer_class = VpnConfigSerializer
-    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return VpnConfig.objects.filter(user=self.request.user).order_by(
@@ -31,7 +31,7 @@ class VpnConfigViewSet(viewsets.ModelViewSet):
 
 class TargetAppViewSet(viewsets.ModelViewSet):
     serializer_class = TargetAppSerializer
-    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return TargetApp.objects.filter(user=self.request.user)
@@ -105,12 +105,6 @@ def billing(request):
             )
 
         session_id = f"sess_{user.id}_{int(timezone.now().timestamp())}"
-        if not sub.gateway_customer_id:
-            sub.gateway_customer_id = f"cust_{uuid.uuid4().hex[:8]}"
-            sub.gateway_subscription_id = f"sub_{uuid.uuid4().hex[:8]}"
-            sub.save(
-                update_fields=["gateway_customer_id", "gateway_subscription_id"]
-            )
         payment_url = request.build_absolute_uri(
             f"/api/billing/gateway/?session={session_id}"
         )
@@ -132,53 +126,50 @@ def billing(request):
         sub.status = "inactive"
         sub.save(update_fields=["status", "updated_at"])
 
-        return Response(
-            "Подписка отменена, она действует до конца оплаченного периода",
-            status=status.HTTP_204_NO_CONTENT,
-        )
+        # тут должна быть отправка запроса в платежную систему,
+        # чтобы она прекратила реккурентные списания
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
-def mock_webhook(request):
+@transaction.atomic
+def webhook(request):
     session_id = request.data.get("session_id")
     event_type = request.data.get("type")
-
-    if not session_id or event_type != "payment.succeeded":
+    if not session_id or not event_type:
         return Response(
-            {"error": "invalid_request"}, status=status.HTTP_400_BAD_REQUEST
+            {"error": "invalid_payload"}, status=status.HTTP_400_BAD_REQUEST
         )
-
     try:
-        # Формат session_id: sess_{user_id}_{timestamp}
         user_id = int(session_id.split("_")[1])
-
         User = get_user_model()
         user = User.objects.get(id=user_id)
+    except (IndexError, ValueError, User.DoesNotExist):
+        return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
-        sub, _ = Subscription.objects.get_or_create(user=user)
+    sub, _ = Subscription.objects.get_or_create(user=user)
+
+    if event_type == "payment.succeeded":
+        if sub.status == "active":
+            # Идемпотентность: шлюзы шлют один webhook 3-5 раз при сетевых ошибках
+            return Response(
+                {"status": "already_processed"}, status=status.HTTP_200_OK
+                )
 
         sub.status = "active"
         sub.current_period_end = timezone.now() + timezone.timedelta(days=30)
         sub.renewal_count += 1
-        sub.save(
-            update_fields=[
-                "status",
-                "current_period_end",
-                "renewal_count",
-                "updated_at",
+    else:
+        sub.status = "inactive"
+
+    sub.save(
+        update_fields=[
+            "status", "current_period_end", "renewal_count", "updated_at"
             ]
-        )
+    )
 
-        return Response(
-            {
-                "status": "success",
-                "message": "Подписка активирована",
-                "expires_at": sub.current_period_end.isoformat(),
-            },
-            status=status.HTTP_200_OK,
-        )
-
-    except (IndexError, ValueError, User.DoesNotExist):
-        return Response(
-            {"error": "invalid_session"}, status=status.HTTP_400_BAD_REQUEST
-        )
+    return Response(
+        {"status": "processed", "event": event_type, "subscription_status": sub.status},
+        status=status.HTTP_200_OK,
+    )

@@ -5,9 +5,14 @@ from .models import User, VpnConfig, TargetApp, Subscription
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ("username", "is_subscribed", "email", "is_active", "subscription")
-    search_fields = ("is_subscribed", "is_active", "email")
-    readonly_fields = ("is_subscribed", "subscription")
+    list_display = ("username", "email", "is_active", "subscription")
+    search_fields = ("email",)
+    list_filter = ("is_active",)
+    readonly_fields = ("subscription",)
+
+    @admin.display(boolean=True, description="Подписка")
+    def is_subscribed_display(self, obj):
+        return obj.is_subscribed
 
 
 @admin.register(VpnConfig)
@@ -36,4 +41,10 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "current_period_end",
         "renewal_count",
         "status",
+    )
+    readonly_fields = (
+        "gateway_customer_id",
+        "gateway_subscription_id",
+        "created_at",
+        "updated_at",
     )

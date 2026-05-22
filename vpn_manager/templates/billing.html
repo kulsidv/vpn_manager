@@ -51,7 +51,7 @@
             payBtn.textContent = 'Обработка...';
 
             try {
-                const res = await fetch('/api/billing/mock-confirm/', {
+                const res = await fetch('/api/billing/webhook/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

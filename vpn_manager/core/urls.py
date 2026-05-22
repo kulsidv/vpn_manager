@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     VpnConfigViewSet, TargetAppViewSet,
     health_check, RegisterView, UserViewSet,
-    billing, mock_webhook, billing_gateway
+    billing, webhook, billing_gateway
 )
 
 router = DefaultRouter()
@@ -16,6 +16,6 @@ urlpatterns = [
     path('health/', health_check, name='health'),
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('billing/', billing, name='billing'),
-    path('billing/webhook/', mock_webhook, name='webhook'),
+    path('billing/webhook/', webhook, name='webhook'),
     path("billing/gateway/", billing_gateway, name="billing_gateway"),
 ]
