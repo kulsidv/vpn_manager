@@ -79,6 +79,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "is_subscribed")
 
+    def to_internal_value(self, data):
+        read_only = set(self.Meta.read_only_fields)
+        if isinstance(data, dict):
+            forbidden = read_only.intersection(data.keys())
+            if forbidden:
+                raise serializers.ValidationError({
+                    field: f"Поле '{field}' доступно только для чтения."
+                    for field in forbidden
+                })
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError(
